@@ -10,10 +10,14 @@ use Illuminate\Support\Facades\Auth;
 
 use App\Models\User;
 
+use App\Traits\Token;
+
 use Illuminate\Support\Facades\Http; # permite hacer peticiones de tipo HTTP
 
 class AuthenticatedSessionController extends Controller
 {
+    use Token;
+
     /**
      * Display the login view.
      *
@@ -58,24 +62,9 @@ class AuthenticatedSessionController extends Controller
             $service['data']);
 
         if (!$user->accessToken()->count()) {
-            $response = Http::withHeaders([
-                'Accept' =>'application/json',
-            ])->post('http://api.codersfree.test/oauth/token', [
-                'grant_type' => 'password',
-                'client_id' => '93d29569-44c6-4e09-83d4-3e7bb6dd4a0a',
-                'client_secret' => '5EHs6v9OBnDwGTZOzaJds9Slo5OYP7B1KC5A9YbR',
-                'username' => $request->email,
-                'password' => $request->password
-            ]);
-    
-            $access_token = $response->json();
-    
-            $user->accessToken()->create([
-                'service_id' => $service['data']['id'],
-                'access_token' => $access_token['access_token'],
-                'refresh_token' => $access_token['refresh_token'],
-                'expires_at' => now()->addSecond($access_token['expires_in'])
-            ]);
+
+            $this->getAccessToken($user, $service);
+            
         }
 
         Auth::login($user, $request->remember);

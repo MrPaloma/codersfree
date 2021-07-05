@@ -11,8 +11,12 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 
+use App\Traits\Token;
+
 class RegisteredUserController extends Controller
 {
+    use Token;
+
     /**
      * Display the registration view.
      *
@@ -33,17 +37,29 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request)
     {
+
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
+        $response = Http::withHeaders([
+            'Accept' => 'aplication/json'
+        ])->post('http://api.codersfree.test/v1/register', $request->all());
+
+        if ($response->status() == 422) {
+            return back()->withErrors($response->json()['errors']);
+        }
+
+        $service = $response->json();
+
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
-            'password' => Hash::make($request->password),
         ]);
+
+        $this->getAccessToken($user, $service);
 
         event(new Registered($user));
 
